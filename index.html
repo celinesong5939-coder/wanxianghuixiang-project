@@ -24,7 +24,7 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
         body { margin: 0; background-color: var(--bg-deep); color: #94a3b8; font-family: var(--font-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
 
-        #meteor-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; transition: opacity 1s; }
+        #meteor-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 1; transition: opacity 1s; }
         body.mode-dark #meteor-canvas { opacity: 0.15; }
 
         .hud-layer { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
@@ -46,10 +46,11 @@
         .static-core { position: absolute; top: 50%; left: 50%; width: 34px; height: 34px; transform: translate(-50%, -50%); }
         .core-body { width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff, #94a3b8 60%, #0f172a 100%); box-shadow: 0 0 40px rgba(56, 189, 248, 0.5); animation: breathe 3s infinite; }
 
-        /* --- 2. 状态文字 (呼吸转场) --- */
+        /* --- 2. 呼吸转场文字 --- */
         .journey-status { position: absolute; top: 80px; width: 100%; text-align: center; }
-        .text-fade-wrapper { transition: opacity 0.5s ease; opacity: 1; }
-        .text-fade-wrapper.fading { opacity: 0; transform: translateY(-10px); } /* 淡出效果 */
+        /* 关键：用 opacity 做转场，不用 display:none */
+        .status-content { transition: opacity 0.6s ease, transform 0.6s ease; opacity: 1; transform: translateY(0); }
+        .status-content.fade-out { opacity: 0; transform: translateY(-10px); }
         
         .current-realm { font-family: var(--font-tech); font-size: 24px; letter-spacing: 4px; color: var(--gold); text-shadow: 0 0 10px rgba(217,119,6,0.3); }
         .realm-progress { font-size: 10px; letter-spacing: 2px; margin-top: 5px; color: #64748b; }
@@ -80,22 +81,25 @@
         .sw-btn { padding: 8px 20px; border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 12px; border-radius: 20px; cursor: pointer; }
         .sw-btn.active { background: var(--gold); border-color: var(--gold); color: #000; font-weight: bold; }
 
-        /* --- 5. 画布 (高级拼贴) --- */
+        /* --- 5. 画布 (高级定点拼贴) --- */
         .hidden-canvas { position: fixed; top: -9999px; left: 0; background: #080c14; overflow: hidden; }
         #canvas-phone { width: 1080px; height: 1920px; }
         #canvas-pad { width: 1600px; height: 1200px; }
 
-        /* 拼贴组件 */
-        .bg-layer-img { position: absolute; object-fit: cover; opacity: 0.5; filter: blur(40px) brightness(0.7); transform: scale(1.2); }
+        /* 底层背景模糊图 */
+        .bg-layer-img { position: absolute; object-fit: cover; opacity: 0.2; filter: blur(50px) contrast(1.2); transform: scale(1.5); }
         
+        /* 拍立得样式 */
         .collage-item { 
-            position: absolute; padding: 12px 12px 45px 12px; 
-            background: #fff; box-shadow: 0 15px 40px rgba(0,0,0,0.5); 
+            position: absolute; 
+            padding: 10px 10px 35px 10px; /* 拍立得经典底部留白 */
+            background: #fff; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6); 
             transform-origin: center center; 
         }
         .collage-img { width: 100%; height: 100%; object-fit: cover; display: block; filter: contrast(1.05); }
         
-        .sticker-year { position: absolute; font-family: var(--font-tech); font-weight: 900; color: #fff; text-shadow: 0 10px 30px rgba(0,0,0,0.8); z-index: 200; pointer-events: none; mix-blend-mode: normal; }
+        .sticker-year { position: absolute; font-family: var(--font-tech); font-weight: 900; color: #fff; text-shadow: 0 10px 40px rgba(0,0,0,1); z-index: 200; pointer-events: none; mix-blend-mode: normal; }
         .sticker-text { position: absolute; background: #000; color: #fff; padding: 8px 24px; font-family: var(--font-main); font-weight: bold; z-index: 200; letter-spacing: 6px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
 
         @keyframes slow-spin { 0% { transform: rotateY(0deg) rotateX(20deg); } 100% { transform: rotateY(360deg) rotateX(380deg); } }
@@ -125,7 +129,8 @@
     <!-- 2. 旅程 (无缝切换) -->
     <div id="stage-swipe" class="stage">
         <div class="journey-status">
-            <div id="text-wrapper" class="text-fade-wrapper">
+            <!-- 包裹一个div做淡入淡出 -->
+            <div id="status-content" class="status-content">
                 <div id="realm-title" class="current-realm">WEALTH</div>
                 <div id="realm-progress" class="realm-progress">能量收集: 0/3</div>
             </div>
@@ -178,7 +183,6 @@
         const BASE_URL = "https://cmkqytnhqfwhkjikozla.supabase.co/storage/v1/object/public/assets/";
         const MAX_PROBE_COUNT = 100; 
 
-        // 旅程：4个板块 x 3张 = 12张
         const JOURNEY = [
             { key: 'WEALTH',  label: 'WEALTH',  target: 3 }, 
             { key: 'BEAUTY',  label: 'BEAUTY',  target: 3 }, 
@@ -212,11 +216,15 @@
             document.getElementById('stage-'+id).classList.add('active');
         }
 
-        // --- 1. 旅程控制 (丝滑转场版) ---
+        function goToCategories() {
+            startJourney();
+        }
+
+        // --- 1. 旅程控制 (呼吸转场修复) ---
         async function startJourney() {
             currentStepIndex = 0;
             finalSelection = [];
-            await loadStep(currentStepIndex, true); // true = 第一次加载，直接显示
+            await loadStep(currentStepIndex, true); 
             switchStage('swipe');
         }
 
@@ -229,7 +237,7 @@
             const step = JOURNEY[index];
             currentSelection = [];
             
-            // 智能加载图片 (后台进行，不阻塞动画)
+            // 后台加载，不阻塞
             const validImages = await validateAndLoadImages(step.key);
             if (validImages.length === 0) {
                 alert(`未找到 ${step.key} 图片，请检查！`);
@@ -237,22 +245,22 @@
             }
             currentCards = [...validImages].sort(() => Math.random() - 0.5);
 
-            // --- 核心：丝滑呼吸转场逻辑 ---
+            // --- 呼吸转场 ---
+            const statusBox = document.getElementById('status-content');
+            
             if (isFirst) {
                 updateUI(step);
                 initStack();
             } else {
-                // 1. 文字淡出
-                const wrapper = document.getElementById('text-wrapper');
-                wrapper.classList.add('fading'); // 触发 CSS opacity 0
-
-                // 2. 等待淡出动画完成 (500ms)
+                // 1. 淡出文字 (呼气)
+                statusBox.classList.add('fade-out');
+                
+                // 2. 等待淡出
                 setTimeout(() => {
-                    updateUI(step); // 更新文字
-                    initStack();    // 加载新卡片
-                    
-                    // 3. 文字淡入
-                    wrapper.classList.remove('fading');
+                    updateUI(step); // 换字
+                    initStack();    // 换卡片
+                    // 3. 淡入文字 (吸气)
+                    statusBox.classList.remove('fade-out');
                 }, 600);
             }
         }
@@ -302,7 +310,6 @@
             if(cards.length===0) return;
             cards.forEach((c,i)=>{ c.style.display = i<3 ? 'block':'none'; });
             currentDragCard = cards[0];
-            
             if(!currentDragCard && currentCards.length === 0) return;
 
             currentDragCard.addEventListener('touchstart', e=>{ startX=e.touches[0].clientX; currentDragCard.style.transition='none'; });
@@ -328,7 +335,6 @@
                 const selectedImg = currentCards[0];
                 currentSelection.push(selectedImg);
                 finalSelection.push(selectedImg);
-                // 更新进度文字
                 document.getElementById('realm-progress').innerText = `能量收集: ${currentSelection.length}/${JOURNEY[currentStepIndex].target}`;
                 flyAway(1);
             } 
@@ -349,9 +355,11 @@
                 
                 const step = JOURNEY[currentStepIndex];
                 if (currentSelection.length >= step.target) {
-                    // 转场逻辑
-                    currentStepIndex++;
-                    await loadStep(currentStepIndex); // 触发呼吸转场
+                    // 转场逻辑：等待0.3秒让卡片飞走，再触发文字淡出
+                    setTimeout(async () => {
+                        currentStepIndex++;
+                        await loadStep(currentStepIndex); 
+                    }, 300);
                 } else {
                     initStack();
                 }
@@ -360,7 +368,7 @@
         function manualSwipe(dir) { if(currentDragCard) handleEnd(dir==='right'?150:-150); }
 
 
-        /* --- 3. 生成算法 (主次分层 + 智能布局) --- */
+        /* --- 3. 生成算法 (定点布局 - 彻底解决遮挡) --- */
         async function prepareGeneration() {
             switchStage('loading');
             document.body.classList.add('mode-dark');
@@ -379,8 +387,9 @@
                 });
             }));
 
-            layoutCanvas('phone', 1080, 1920, 3, 4);
-            layoutCanvas('pad', 1600, 1200, 4, 3);
+            // 定点布局：不再随机，使用预设的完美坐标
+            layoutFixed('phone', 1080, 1920);
+            layoutFixed('pad', 1600, 1200);
 
             setTimeout(async () => {
                 generatedImages.phone = await render('canvas-phone');
@@ -390,12 +399,45 @@
             }, 1000);
         }
 
-        function layoutCanvas(type, W, H, cols, rows) {
+        // 预设坐标系 (x%, y%, width%, rotation) - 经过调试的完美布局
+        const PHONE_LAYOUT = [
+            { x: 50, y: 35, w: 55, r: 0, z: 100 }, // C位大图
+            { x: 50, y: 70, w: 55, r: -2, z: 99 }, // C位副图
+            { x: 20, y: 15, w: 35, r: -5, z: 10 },
+            { x: 80, y: 15, w: 35, r: 5, z: 11 },
+            { x: 15, y: 50, w: 30, r: 8, z: 12 },
+            { x: 85, y: 50, w: 30, r: -8, z: 13 },
+            { x: 20, y: 85, w: 35, r: -4, z: 14 },
+            { x: 80, y: 85, w: 35, r: 4, z: 15 },
+            { x: 50, y: 10, w: 30, r: 0, z: 5 },
+            { x: 50, y: 92, w: 30, r: 0, z: 6 },
+            { x: 10, y: 30, w: 25, r: -15, z: 1 },
+            { x: 90, y: 30, w: 25, r: 15, z: 2 },
+        ];
+
+        const PAD_LAYOUT = [
+            { x: 35, y: 50, w: 45, r: -2, z: 100 }, // 左C位
+            { x: 75, y: 40, w: 40, r: 3, z: 99 },   // 右C位
+            { x: 15, y: 20, w: 25, r: -5, z: 10 },
+            { x: 50, y: 15, w: 25, r: 0, z: 11 },
+            { x: 85, y: 15, w: 25, r: 5, z: 12 },
+            { x: 10, y: 80, w: 25, r: 5, z: 13 },
+            { x: 50, y: 85, w: 25, r: 0, z: 14 },
+            { x: 90, y: 75, w: 25, r: -5, z: 15 },
+            { x: 10, y: 50, w: 20, r: -10, z: 5 },
+            { x: 90, y: 40, w: 20, r: 10, z: 6 },
+            { x: 30, y: 85, w: 22, r: -3, z: 7 },
+            { x: 70, y: 10, w: 22, r: 3, z: 8 },
+        ];
+
+        function layoutFixed(type, W, H) {
             const bgContainer = document.getElementById('bg-'+type);
             const layerContainer = document.getElementById('layer-'+type);
             bgContainer.innerHTML = ''; layerContainer.innerHTML = '';
 
-            // 1. 底层氛围 (Atmosphere)
+            const layout = type === 'phone' ? PHONE_LAYOUT : PAD_LAYOUT;
+
+            // 1. 背景层
             for(let i=0; i<6; i++) {
                 let img = document.createElement('img');
                 img.src = finalSelection[i % finalSelection.length];
@@ -406,58 +448,29 @@
                 bgContainer.appendChild(img);
             }
 
-            // 2. 主次分层布局 (Hero Layout)
-            const cellW = W / cols;
-            const cellH = H / rows;
-            
-            // 打乱图片顺序
-            let shuffled = [...finalSelection].sort(() => Math.random() - 0.5);
+            // 2. 核心拼贴层
+            // 打乱图片顺序，避免同类图片扎堆
+            let shuffledImages = [...finalSelection].sort(() => Math.random() - 0.5);
 
-            shuffled.forEach((url, i) => {
-                let col = i % cols;
-                let row = Math.floor(i / cols);
-
-                // 判断是否为视觉中心位 (中间的格子)
-                // 3x4: col=1, row=1 or 2
-                // 4x3: col=1 or 2, row=1
-                let isCenter = false;
-                if (cols === 3) isCenter = (col === 1 && (row === 1 || row === 2));
-                if (cols === 4) isCenter = ((col === 1 || col === 2) && row === 1);
-
-                // --- 核心算法升级：主次分明 ---
-                let scale, zIndex, rot;
-
-                if (isCenter) {
-                    // 主角 (Hero): 大、正、顶层
-                    scale = 1.6 + Math.random() * 0.2; // 1.6~1.8倍
-                    zIndex = 100 + i; 
-                    rot = (Math.random() - 0.5) * 6; // 仅微小旋转 +/- 3度
-                } else {
-                    // 配角/氛围: 小、乱、底层
-                    scale = 1.1 + Math.random() * 0.3; // 1.1~1.4倍
-                    zIndex = 10 + i;
-                    rot = (Math.random() - 0.5) * 24; // 较大旋转 +/- 12度
-                }
-
-                // 随机偏移 (Jitter)
-                let offsetX = (Math.random() - 0.5) * cellW * 0.5;
-                let offsetY = (Math.random() - 0.5) * cellH * 0.5;
-
-                // 拍立得尺寸
-                let w = cellW * scale * 0.85; // 稍微收一点，留出呼吸感
-                let h = w * 1.35; 
+            layout.forEach((pos, i) => {
+                if (i >= shuffledImages.length) return;
+                
+                let imgUrl = shuffledImages[i];
+                let w = (pos.w / 100) * W;
+                let h = w * 1.35; // 3:4 比例
 
                 let div = document.createElement('div');
                 div.className = 'collage-item';
                 div.style.width = w + 'px';
                 div.style.height = h + 'px';
-                div.style.left = (col * cellW + cellW/2 - w/2 + offsetX) + 'px';
-                div.style.top = (row * cellH + cellH/2 - h/2 + offsetY) + 'px';
-                div.style.transform = `rotate(${rot}deg)`;
-                div.style.zIndex = zIndex;
+                // 坐标转换：百分比转像素，并居中锚点
+                div.style.left = ((pos.x / 100) * W - w/2) + 'px';
+                div.style.top = ((pos.y / 100) * H - h/2) + 'px';
+                div.style.transform = `rotate(${pos.r}deg)`;
+                div.style.zIndex = pos.z;
 
                 let img = document.createElement('img');
-                img.src = url;
+                img.src = imgUrl;
                 img.className = 'collage-img';
                 img.crossOrigin = "anonymous";
 
@@ -477,7 +490,7 @@
             document.getElementById('btn-'+t).classList.add('active');
         }
 
-        /* --- 流星雨 --- */
+        /* --- 5. 流星雨 --- */
         const canvas = document.getElementById('meteor-canvas');
         const ctx = canvas.getContext('2d');
         let w, height, meteors = [];
