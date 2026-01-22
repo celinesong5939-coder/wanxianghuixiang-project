@@ -29,7 +29,7 @@
 
         /* --- 1. 背景流星雨 Canvas --- */
         #meteor-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 1; transition: opacity 1s; }
-        body.mode-dark #meteor-canvas { opacity: 0.15; } /* 生成时变暗 */
+        body.mode-dark #meteor-canvas { opacity: 0.15; }
 
         /* --- 2. HUD & Logo --- */
         .hud-layer { position: fixed; inset: 0; pointer-events: none; z-index: 10; transition: opacity 0.5s; }
@@ -42,18 +42,15 @@
         .stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.6s ease; opacity: 0; pointer-events: none; transform: scale(0.95); z-index: 1; }
         .stage.active { opacity: 1; pointer-events: auto; transform: scale(1); z-index: 20; }
 
-        /* --- 4. 核心粒子球 (回归版：轨道+静止核心) --- */
+        /* --- 4. 核心粒子球 --- */
         .sphere-wrapper {
             width: 220px; height: 220px; position: relative; cursor: pointer;
             transition: all 0.5s ease;
         }
-        .sphere-wrapper:active { transform: scale(0.95); } /* 点击反馈 */
+        .sphere-wrapper:active { transform: scale(0.95); }
         
-        /* 旋转的轨道 */
         .rings-container {
-            position: absolute; inset: 0;
-            transform-style: preserve-3d;
-            perspective: 1000px;
+            position: absolute; inset: 0; transform-style: preserve-3d; perspective: 1000px;
             animation: slow-spin 20s linear infinite;
         }
         .orbit {
@@ -65,22 +62,17 @@
         .orbit:nth-child(2) { transform: rotateY(60deg); }
         .orbit:nth-child(3) { transform: rotateY(120deg); }
 
-        /* 静止的核心 */
         .static-core {
-            position: absolute; top: 50%; left: 50%;
-            width: 34px; height: 34px;
-            transform: translate(-50%, -50%);
-            z-index: 5;
+            position: absolute; top: 50%; left: 50%; width: 34px; height: 34px;
+            transform: translate(-50%, -50%); z-index: 5;
         }
         .core-body {
-            width: 100%; height: 100%;
-            border-radius: 50%;
+            width: 100%; height: 100%; border-radius: 50%;
             background: radial-gradient(circle at 35% 35%, #fff, #94a3b8 60%, #0f172a 100%);
             box-shadow: 0 0 40px rgba(56, 189, 248, 0.5), inset 0 0 10px rgba(255,255,255,0.8);
             animation: breathe-core 4s ease-in-out infinite;
         }
 
-        /* 动画定义 */
         @keyframes slow-spin { 0% { transform: rotateY(0deg) rotateX(20deg); } 100% { transform: rotateY(360deg) rotateX(380deg); } }
         @keyframes breathe-core { 0%, 100% { transform: scale(1); box-shadow: 0 0 30px rgba(56, 189, 248, 0.4); } 50% { transform: scale(1.1); box-shadow: 0 0 50px rgba(56, 189, 248, 0.7); } }
 
@@ -117,18 +109,15 @@
         .sw-btn { padding: 8px 16px; border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 12px; border-radius: 20px; cursor: pointer; }
         .sw-btn.active { background: var(--gold); border-color: var(--gold); color: #000; font-weight: bold; }
 
-        /* --- 8. 隐藏画布 (拼图逻辑) --- */
+        /* --- 8. 隐藏画布 --- */
         .hidden-canvas { position: fixed; top: -9999px; left: 0; background: #000; overflow: hidden; }
         #canvas-phone { width: 1080px; height: 1920px; }
         #canvas-pad { width: 1600px; height: 1200px; }
 
-        /* 底层背景模糊图 */
         .bg-layer-img { position: absolute; object-fit: cover; opacity: 0.4; filter: blur(25px) contrast(1.2) brightness(0.8); transform: scale(1.2); }
-        /* 顶层拍立得 */
         .collage-item { position: absolute; padding: 10px 10px 30px 10px; background: #fff; box-shadow: 0 15px 40px rgba(0,0,0,0.6); transition: none; transform-origin: center center; }
         .collage-img { width: 100%; height: 100%; object-fit: cover; display: block; }
         
-        /* 装饰文字 */
         .sticker-year { position: absolute; font-family: var(--font-tech); font-weight: 900; color: #fff; text-shadow: 0 5px 20px rgba(0,0,0,0.5); z-index: 100; mix-blend-mode: overlay; pointer-events: none; }
         .sticker-text { position: absolute; background: #000; color: #fff; padding: 5px 15px; font-family: var(--font-main); font-weight: bold; z-index: 100; letter-spacing: 4px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
     </style>
@@ -144,7 +133,7 @@
         <div class="studio-mark">ZIGZAG STUDIO</div>
     </div>
 
-    <!-- 1. 开场 (回归：轨道+核心) -->
+    <!-- 1. 开场 -->
     <div id="stage-intro" class="stage active">
         <div class="sphere-wrapper" onclick="goToCategories()">
             <div class="rings-container">
@@ -157,7 +146,7 @@
         <div style="margin-top:40px; letter-spacing:6px; font-size:12px; color:#fff; text-shadow:0 0 10px rgba(56,189,248,0.5);">触碰星尘 · 开启显化</div>
     </div>
 
-    <!-- 2. 分类 (已修改为：财富/美貌/伴侣/生活) -->
+    <!-- 2. 分类 -->
     <div id="stage-category" class="stage">
         <div class="cat-grid">
             <div class="cat-card" onclick="startSwiping('WEALTH')">
@@ -251,12 +240,13 @@
         let maxSelection = 12;
         let generatedImages = { phone: null, pad: null };
 
-        // --- 1. 导航函数 (之前缺失的部分已补回) ---
+        // --- 1. 导航函数 (关键修复：补回了这里) ---
         function switchStage(id) {
             document.querySelectorAll('.stage').forEach(el => el.classList.remove('active'));
             document.getElementById('stage-'+id).classList.add('active');
         }
 
+        // 这个函数就是之前的 bug 所在，现在补上了
         function goToCategories() {
             switchStage('category');
         }
@@ -286,7 +276,6 @@
             grid.innerHTML = originalContent;
 
             if (validLinks.length < 5) {
-                // 如果图片太少，自动复制填充，防止无法演示
                 while (validLinks.length > 0 && validLinks.length < 20) {
                     validLinks.push(...validLinks);
                 }
