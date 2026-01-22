@@ -219,32 +219,43 @@
     </div>
 
     <script>
-        // --- 核心数据结构 (已更新为4个新板块) ---
-        // 你需要把下面数组里的链接换成你自己的 40 张图
-        const db = {
-            WEALTH: [ // 财富：金钱、奢华、跑车、名表
-                'https://images.unsplash.com/photo-1579621970563-ebec7560eb3e?w=800',
-                'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=800',
-                'https://images.unsplash.com/photo-1611974765270-ca1258634369?w=800'
-            ],
-            BEAUTY: [ // 美貌：护肤、瑜伽、身材、时尚
-                'https://images.unsplash.com/photo-1596462502278-27bfdd403348?w=800',
-                'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800',
-                'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800'
-            ],
-            PARTNER: [ // 伴侣：情侣、牵手、婚礼、浪漫
-                'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=800',
-                'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=800',
-                'https://images.unsplash.com/photo-1621621667797-e06afc217fb0?w=800'
-            ],
-            LIFE: [ // 生活：旅行、咖啡、家居、自然
-                'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800',
-                'https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=800',
-                'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=800'
-            ]
+       // ==========================================
+        //  👇 在这里配置你的 Supabase 信息
+        // ==========================================
+        
+        // 1. 填入你刚才复制的链接前缀 (注意：最后要带斜杠 / )
+        const BASE_URL = "https://cmkqytnhqfwhkjikozla.supabase.co/storage/v1/object/public/assets/";
+
+        // 2. 填入你每个板块上传了多少张图片？
+        const IMG_COUNTS = {
+            WEALTH: 9,  // 比如你上传了12张，就填12
+            BEAUTY: 93,  // 如果只有10张，就填10
+            PARTNER: 49,
+            LIFE: 57
         };
-        // 自动扩充数据 (演示用，你替换图片后可以删掉这行)
-        for(let k in db) { while(db[k].length < 20) db[k] = db[k].concat(db[k]); }
+
+        // ==========================================
+        //  👇 下面的代码会自动生成链接，不用动
+        // ==========================================
+
+        function generateLinks(folder, count) {
+            let arr = [];
+            for (let i = 1; i <= count; i++) {
+                // 假设你的图片是 jpg 格式。如果是 png，请把 .jpg 改为 .png
+                arr.push(`${BASE_URL}${folder}/${i}.jpg`);
+            }
+            return arr;
+        }
+
+        const db = {
+            WEALTH: generateLinks('WEALTH', IMG_COUNTS.WEALTH),
+            BEAUTY: generateLinks('BEAUTY', IMG_COUNTS.BEAUTY),
+            PARTNER: generateLinks('PARTNER', IMG_COUNTS.PARTNER),
+            LIFE:   generateLinks('LIFE', IMG_COUNTS.LIFE)
+        };
+
+        // 数据扩充（为了演示效果，如果你的图少于12张，这行代码会自动复制循环，保证能玩）
+        for(let k in db) { while(db[k].length < 12) db[k] = db[k].concat(db[k]); }
 
         let currentCards=[], selectedCards=[], maxSelection=12;
         let generatedImages = { phone: null, pad: null };
@@ -473,4 +484,5 @@
         animate();
     </script>
 </body>
+
 </html>
