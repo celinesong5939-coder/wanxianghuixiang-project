@@ -110,16 +110,44 @@
         .sw-btn.active { background: var(--gold); border-color: var(--gold); color: #000; font-weight: bold; }
 
         /* --- 8. 隐藏画布 --- */
-        .hidden-canvas { position: fixed; top: -9999px; left: 0; background: #000; overflow: hidden; }
-        #canvas-phone { width: 1080px; height: 1920px; }
-        #canvas-pad { width: 1600px; height: 1200px; }
+       /* ... 保持前面的 CSS 不变 ... */
 
-        .bg-layer-img { position: absolute; object-fit: cover; opacity: 0.4; filter: blur(25px) contrast(1.2) brightness(0.8); transform: scale(1.2); }
-        .collage-item { position: absolute; padding: 10px 10px 30px 10px; background: #fff; box-shadow: 0 15px 40px rgba(0,0,0,0.6); transition: none; transform-origin: center center; }
-        .collage-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        
-        .sticker-year { position: absolute; font-family: var(--font-tech); font-weight: 900; color: #fff; text-shadow: 0 5px 20px rgba(0,0,0,0.5); z-index: 100; mix-blend-mode: overlay; pointer-events: none; }
-        .sticker-text { position: absolute; background: #000; color: #fff; padding: 5px 15px; font-family: var(--font-main); font-weight: bold; z-index: 100; letter-spacing: 4px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+    /* === 优化后的画布样式 === */
+    .hidden-canvas { position: fixed; top: -9999px; left: 0; background: #000; overflow: hidden; }
+    #canvas-phone { width: 1080px; height: 1920px; }
+    #canvas-pad { width: 1600px; height: 1200px; }
+
+    /* 底层氛围图 (稍微调暗一点，突出主体) */
+    .bg-layer-img { 
+        position: absolute; object-fit: cover; opacity: 0.5; 
+        filter: blur(40px) brightness(0.7); transform: scale(1.2); 
+    }
+    
+    /* 顶层拍立得 (增加质感) */
+    .collage-item { 
+        position: absolute; 
+        padding: 12px 12px 40px 12px; /* 底部留白更多，像拍立得 */
+        background: #fff; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.4); 
+        transition: none; transform-origin: center center; 
+    }
+    .collage-img { width: 100%; height: 100%; object-fit: cover; display: block; filter: contrast(1.05); }
+    
+    /* 装饰文字 (增加易读性) */
+    .sticker-year { 
+        position: absolute; font-family: var(--font-tech); font-weight: 900; 
+        color: #fff; 
+        /* 关键：增加强阴影，防止在白色背景上看不见 */
+        text-shadow: 0 10px 30px rgba(0,0,0,0.8); 
+        z-index: 1000; pointer-events: none; 
+        mix-blend-mode: normal; /* 取消 overlay，防止颜色变怪 */
+    }
+    .sticker-text { 
+        position: absolute; background: #000; color: #fff; 
+        padding: 5px 20px; font-family: var(--font-main); font-weight: bold; 
+        z-index: 1000; letter-spacing: 6px; 
+        box-shadow: 0 10px 20px rgba(0,0,0,0.5); 
+    }
     </style>
 </head>
 <body>
@@ -393,35 +421,62 @@
             const layerContainer = document.getElementById('layer-'+type);
             bgContainer.innerHTML = ''; layerContainer.innerHTML = '';
 
-            for(let i=0; i<6; i++) {
+            // 1. 底层氛围 (Atmosphere) - 选4张图铺满
+            for(let i=0; i<4; i++) {
                 let img = document.createElement('img');
-                img.src = selectedCards[i % selectedCards.length];
+                // 随机取图
+                img.src = selectedCards[Math.floor(Math.random() * selectedCards.length)];
                 img.className = 'bg-layer-img';
+                // 随机位置
                 img.style.left = (Math.random()*W - W/2) + 'px';
                 img.style.top = (Math.random()*H - H/2) + 'px';
-                img.style.width = W + 'px'; img.style.height = H + 'px';
+                img.style.width = (W * 1.2) + 'px'; 
+                img.style.height = (H * 1.2) + 'px';
                 bgContainer.appendChild(img);
             }
 
+            // 2. 核心堆叠 (Masonry Pile)
             const cellW = W / cols;
             const cellH = H / rows;
 
-            selectedCards.forEach((url, i) => {
+            // 打乱顺序，防止同一类图片堆在一起
+            let shuffledCards = [...selectedCards].sort(() => Math.random() - 0.5);
+
+            shuffledCards.forEach((url, i) => {
+                // 计算原始网格位置
                 let col = i % cols;
                 let row = Math.floor(i / cols);
                 if(i >= cols*rows) { col = Math.floor(Math.random()*cols); row = Math.floor(Math.random()*rows); }
 
-                let scale = 1.3 + Math.random() * 0.5; 
-                let w = cellW * scale;
-                let h = w * 1.4;
-
-                let offsetX = (Math.random()-0.5) * cellW * 0.8;
-                let offsetY = (Math.random()-0.5) * cellH * 0.8;
+                // --- 算法升级 ---
                 
+                // A. 中心加权：判断这张图是否靠近画面中心
+                // 如果是中心图，尺寸更大，层级更高，旋转更小
+                const isCenter = (col > 0 && col < cols-1) && (row > 0 && row < rows-1);
+                
+                let scaleBase = isCenter ? 1.6 : 1.35; // 中间的大，边缘的小
+                let scale = scaleBase + (Math.random() * 0.3); 
+                
+                let w = cellW * scale;
+                let h = w * 1.35; // 3:4 比例，比较经典的拍立得比例
+
+                // B. 随机扰动 (Jitter)
+                let offsetX = (Math.random()-0.5) * cellW * 0.9;
+                let offsetY = (Math.random()-0.5) * cellH * 0.9;
+                
+                // C. 旋转 (微调：由 +/-20 改为 +/-8 度)
+                // 这样看起来更整齐，像精心摆放的，而不是乱扔的
+                let rot = (Math.random()-0.5) * 16; 
+
+                // D. 坐标计算
                 let x = col * cellW + cellW/2 - w/2 + offsetX;
                 let y = row * cellH + cellH/2 - h/2 + offsetY;
-                let rot = (Math.random()-0.5) * 40; 
 
+                // E. 智能层级 (Z-Index)
+                // 靠近中心的图，层级大概率更高，避免被边缘图盖住
+                let zIndex = isCenter ? 50 + Math.floor(Math.random()*20) : Math.floor(Math.random()*40);
+
+                // 创建 DOM
                 let div = document.createElement('div');
                 div.className = 'collage-item';
                 div.style.width = w + 'px';
@@ -429,7 +484,7 @@
                 div.style.left = x + 'px';
                 div.style.top = y + 'px';
                 div.style.transform = `rotate(${rot}deg)`;
-                div.style.zIndex = Math.floor(Math.random()*20);
+                div.style.zIndex = zIndex;
 
                 let img = document.createElement('img');
                 img.src = url;
@@ -502,3 +557,4 @@
     </script>
 </body>
 </html>
+
