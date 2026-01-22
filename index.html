@@ -238,6 +238,16 @@
     </div>
 
     <script>
+        (function() {
+            const originalGetContext = HTMLCanvasElement.prototype.getContext;
+            HTMLCanvasElement.prototype.getContext = function(type, attributes) {
+                if (type === '2d') {
+                    attributes = attributes || {};
+                    attributes.willReadFrequently = true; // 强制开启高频读取优化
+                }
+                return originalGetContext.call(this, type, attributes);
+            };
+        })();
         // ==========================================
         //  👇 智能图片加载配置
         // ==========================================
@@ -557,4 +567,5 @@
     </script>
 </body>
 </html>
+
 
