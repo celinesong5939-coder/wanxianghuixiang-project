@@ -220,57 +220,104 @@
 
     <script>
        // ==========================================
-        //  👇 在这里配置你的 Supabase 信息
+        //  👇 智能图片加载配置
         // ==========================================
         
-        // 1. 填入你刚才复制的链接前缀 (注意：最后要带斜杠 / )
-        const BASE_URL = "https://cmkqytnhqfwhkjikozla.supabase.co/storage/v1/object/public/assets";
+        // 1. 你的 Supabase 项目前缀 (确保最后有斜杠 /)
+        const BASE_URL = "https://cmkqytnhqfwhkjikozla.supabase.co/storage/v1/object/public/assets/";
 
-        // 2. 填入你每个板块上传了多少张图片？
-        const IMG_COUNTS = {
-            WEALTH: 9,  // 比如你上传了12张，就填12
-            BEAUTY: 93,  // 如果只有10张，就填10
-            PARTNER: 49,
-            LIFE: 57
-        };
+        // 2. 设定最大探测数量 (比如你觉得未来最多会传到 60 张，就填 60)
+        // 代码会自动检测 1.jpg 到 60.jpg，存在的显示，不存在的自动忽略
+        const MAX_PROBE_COUNT = 100; 
 
         // ==========================================
-        //  👇 下面的代码会自动生成链接，不用动
+        //  👇 核心逻辑 (不用动)
         // ==========================================
 
-        function generateLinks(folder, count) {
+        // 预生成所有可能的链接 (1 到 MAX)
+        function generatePotentialLinks(folder) {
             let arr = [];
-            for (let i = 1; i <= count; i++) {
-                // 假设你的图片是 jpg 格式。如果是 png，请把 .jpg 改为 .png
+            for (let i = 1; i <= MAX_PROBE_COUNT; i++) {
                 arr.push(`${BASE_URL}${folder}/${i}.jpg`);
             }
             return arr;
         }
 
-        const db = {
-            WEALTH: generateLinks('WEALTH', IMG_COUNTS.WEALTH),
-            BEAUTY: generateLinks('BEAUTY', IMG_COUNTS.BEAUTY),
-            PARTNER: generateLinks('PARTNER', IMG_COUNTS.PARTNER),
-            LIFE:   generateLinks('LIFE', IMG_COUNTS.LIFE)
+        // 原始数据库结构 (包含所有可能的链接)
+        const rawDb = {
+            WEALTH: generatePotentialLinks('WEALTH'),
+            BEAUTY: generatePotentialLinks('BEAUTY'),
+            PARTNER: generatePotentialLinks('PARTNER'),
+            LIFE: generatePotentialLinks('LIFE')
         };
 
-        // 数据扩充（为了演示效果，如果你的图少于12张，这行代码会自动复制循环，保证能玩）
-        for(let k in db) { while(db[k].length < 12) db[k] = db[k].concat(db[k]); }
-
-        let currentCards=[], selectedCards=[], maxSelection=12;
+        // 全局变量
+        let currentCards = [];
+        let selectedCards = [];
+        let maxSelection = 12;
         let generatedImages = { phone: null, pad: null };
 
-        function switchStage(id) {
-            document.querySelectorAll('.stage').forEach(el=>el.classList.remove('active'));
-            document.getElementById('stage-'+id).classList.add('active');
+        /* --- 智能验证函数 --- */
+        // 这个函数会在你点击板块时运行，快速检测哪些图片是真实存在的
+        async function validateAndLoadImages(category) {
+            // 显示加载提示
+            const grid = document.querySelector('.cat-grid');
+            const originalContent = grid.innerHTML;
+            grid.innerHTML = `<div style="grid-column:span 2; text-align:center; color:#fff; padding:40px;">
+                                <div style="font-size:24px; margin-bottom:10px;">📡</div>
+                                <div>正在连接宇宙数据库...</div>
+                                <div style="font-size:10px; opacity:0.6; margin-top:5px;">检测能量碎片中</div>
+                              </div>`;
+
+            const potentialLinks = rawDb[category];
+            const validLinks = [];
+
+            // 并发检测所有图片
+            await Promise.all(potentialLinks.map(url => {
+                return new Promise(resolve => {
+                    const img = new Image();
+                    img.src = url;
+                    // 如果图片加载成功，加入有效列表
+                    img.onload = () => { 
+                        validLinks.push(url); 
+                        resolve(); 
+                    };
+                    // 如果图片不存在(404)，直接忽略
+                    img.onerror = () => { 
+                        resolve(); 
+                    };
+                });
+            }));
+
+            // 恢复界面
+            grid.innerHTML = originalContent;
+
+            // 如果有效图片太少(比如还没上传)，就自动复制填充，防止 bug
+            if (validLinks.length < 5) {
+                console.warn(`${category} 板块图片太少，启动自动克隆模式`);
+                while (validLinks.length > 0 && validLinks.length < 20) {
+                    validLinks.push(...validLinks);
+                }
+            }
+
+            return validLinks;
         }
-        function goToCategories() { switchStage('category'); }
-        
-        // 传入板块 KEY
-        function startSwiping(cat) {
-            // 简单的随机洗牌
-            currentCards = [...db[cat]].sort(()=>Math.random()-0.5);
+
+        /* --- 修改后的开始函数 --- */
+        async function startSwiping(cat) {
+            // 1. 先去探测哪些图片是活的
+            const validImages = await validateAndLoadImages(cat);
+            
+            if (validImages.length === 0) {
+                alert("该板块暂时没有探测到能量图片，请检查 Supabase 文件夹命名 (1.jpg, 2.jpg...)");
+                return;
+            }
+
+            // 2. 洗牌
+            currentCards = [...validImages].sort(() => Math.random() - 0.5);
             selectedCards = [];
+            
+            // 3. 初始化堆叠
             initStack();
             switchStage('swipe');
         }
@@ -486,4 +533,5 @@
 </body>
 
 </html>
+
 
